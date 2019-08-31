@@ -26,7 +26,7 @@ sift_compare (features::Sift::Descriptor const& d1, features::Sift::Descriptor c
 }
 
 int
-main (int argc, char** argv)
+main (int argc, char** argv)//argc为传入参数个数，argv为参数数组：　名称　参数
 {
     if (argc < 2)
     {

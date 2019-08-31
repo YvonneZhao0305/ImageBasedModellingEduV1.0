@@ -11,9 +11,9 @@
 #include <cstdint>
 #include <vector>
 
-#include "features/cascade_hashing.h"
+#include "sfm/cascade_hashing.h"
 
-FEATURES_NAMESPACE_BEGIN
+SFM_NAMESPACE_BEGIN
 
 void
 CascadeHashing::GlobalData::generate_proj_matrices (Options const& opts)
@@ -31,7 +31,7 @@ CascadeHashing::GlobalData::generate_proj_matrices (Options const& opts)
 /* ---------------------------------------------------------------- */
 
 void
-CascadeHashing::init (sfm::bundler::ViewportList* viewports)
+CascadeHashing::init (bundler::ViewportList* viewports)
 {
     ExhaustiveMatching::init(viewports);
 
@@ -222,4 +222,4 @@ CascadeHashing::build_buckets(
     }
 }
 
-FEATURES_NAMESPACE_END
+SFM_NAMESPACE_END

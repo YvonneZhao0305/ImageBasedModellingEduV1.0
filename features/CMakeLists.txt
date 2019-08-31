@@ -12,7 +12,6 @@ set(HEADERS
         matching_base.h
         matching.h
         exhaustive_matching.h
-        cascade_hashing.h
         )
 
 set(SOURCE_FILES
@@ -21,7 +20,6 @@ set(SOURCE_FILES
         nearest_neighbor.cc
         matching.cc
         exhaustive_matching.cc
-        cascade_hashing.cc
 
         )
 add_library(${PROJECT_NAME} ${HEADERS} ${SOURCE_FILES})

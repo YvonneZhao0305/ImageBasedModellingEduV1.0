@@ -42,3 +42,4 @@ set(POSE_FROM_FUNDAMENTAL
         )
 add_executable(task2_test_pose_from_fundamental ${POSE_FROM_FUNDAMENTAL} )
 target_link_libraries(task2_test_pose_from_fundamental sfm util core features )
+

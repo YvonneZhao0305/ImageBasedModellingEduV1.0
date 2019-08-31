@@ -87,7 +87,7 @@ Sift::process (void)
         std::cout << "SIFT: Localizing and filtering keypoints..." << std::endl;
     }
     timer.reset();
-    this->keypoint_localization();
+    this->keypoint_localization();//亚像素定位
     if (this->options.debug_output)
     {
         std::cout << "SIFT: Retained " << this->keypoints.size() << " stable "
@@ -175,7 +175,7 @@ Sift::create_octaves (void)
      * Create octave -1. The original image is assumed to have blur
      * sigma = 0.5. The double size image therefore has sigma = 1.
      */
-    if (this->options.min_octave < 0)
+    if (this->options.min_octave < 0)//min_octave<0 上采样,>0 下采样？
     {
         //std::cout << "Creating octave -1..." << std::endl;
         core::FloatImage::Ptr img
@@ -204,7 +204,7 @@ Sift::create_octaves (void)
         this->add_octave(img, img_sigma, this->options.base_blur_sigma);
 
         core::FloatImage::ConstPtr pre_base = octaves[octaves.size()-1].img[0];
-        img = core::image::rescale_half_size_gaussian<float>(pre_base);
+        img = core::image::rescale_half_size_gaussian<float>(pre_base);//取出octave的第一幅图像进行下采样，尺度变成原来的两倍
 
         img_sigma = this->options.base_blur_sigma;
     }
@@ -242,7 +242,7 @@ Sift::add_octave (core::FloatImage::ConstPtr image,
     {
         /* Calculate the blur sigma the image will get. */
         float sigmak = sigma * k;
-        float blur_sigma = std::sqrt(MATH_POW2(sigmak) - MATH_POW2(sigma));
+        float blur_sigma = std::sqrt(MATH_POW2(sigmak) - MATH_POW2(sigma));//计算一个增量的滤波核大小，作用在上一层的图像上
 
         /* Blur the image to create a new scale space sample. */
         //std::cout << "Blurring image to sigma " << sigmak << " (has " << sigma
@@ -298,7 +298,7 @@ Sift::extrema_detection (core::FloatImage::ConstPtr s[3], int oi, int si)
 
     /*
      * Iterate over all pixels in s[1], and check if pixel is maximum
-     * (or minumum) in its 27-neighborhood.
+     * (or minumum) in its 27-neighborhood.？
      */
     int detected = 0;
     int off = w;
@@ -360,6 +360,7 @@ Sift::keypoint_localization (void)
         Octave const& oct(this->octaves[kp.octave - this->options.min_octave]);
         int sample = static_cast<int>(kp.sample);
         core::FloatImage::ConstPtr dogs[3] = { oct.dog[sample + 0], oct.dog[sample + 1], oct.dog[sample + 2] };
+        //把有效差分序号转换到dog序号上,讨论特征点所在层数dogs[1]及其上下两层
 
         /* Shorthand for image width and height. */
         int const w = dogs[0]->width();
@@ -373,7 +374,7 @@ Sift::keypoint_localization (void)
         float Dx, Dy, Ds;
         float Dxx, Dyy, Dss;
         float Dxy, Dxs, Dys;
-
+        math::Vec3f delta(delta_x, delta_y, delta_s);
         /*
          * Locate the keypoint using second order Taylor approximation.
          * The procedure might get iterated around a neighboring pixel if
@@ -382,7 +383,7 @@ Sift::keypoint_localization (void)
 #       define AT(S,OFF) (dogs[S]->at(px + OFF))
         for (int j = 0; j < 5; ++j)
         {
-            std::size_t px = iy * w + ix;
+            std::size_t px = iy * w + ix;//将x y上的偏移量统一到一个维度上，注意x指向右　y指向下
 
             /* Compute first and second derivatives. */
             Dx = (AT(1,1) - AT(1,-1)) * 0.5f;
@@ -406,22 +407,26 @@ Sift::keypoint_localization (void)
              *   [H[3], H[4], H[5]]
              *   [H[6], H[7], H[8]]
              */
+             H[0] = Dx, H[1] = Dxy, H[2] = Dxs;
+             H[3] = Dxy, H[4] = Dyy, H[5] = Dys;
+             H[6] = Dxs, H[7] = Dys, H[8] = Dss;
+
 
             /**********************************************************************************/
-            H[0] = Dxx; H[1] = Dxy; H[2] = Dxs;
-            H[3] = Dxy; H[4] = Dyy; H[5] = Dys;
-            H[6] = Dxs; H[7] = Dys; H[8] = Dss;
+//            H[0] = Dxx; H[1] = Dxy; H[2] = Dxs;
+//            H[3] = Dxy; H[4] = Dyy; H[5] = Dys;
+//            H[6] = Dxs; H[7] = Dys; H[8] = Dss;
 
 
-            /* Compute determinant to detect singular matrix. */
+            /* Compute determinant to detect singular matrix 奇异矩阵行列式为0. */
             float detH = math::matrix_determinant(H);
-            if (MATH_EPSILON_EQ(detH, 0.0f, 1e-15f))
+            if (MATH_EPSILON_EQ(detH, 0.0f, 1e-15f))//判断行列式是否为0
             {
                 num_singular += 1;
                 delta_x = delta_y = delta_s = 0.0f; // FIXME: Handle this case?
                 break;
             }
-            /* Invert the matrix to get the accurate keypoint. */
+            /* Invert the matrix to get the accurate keypoint.求逆 */
             math::Matrix3f H_inv = math::matrix_inverse(H, detH);
             math::Vec3f b(-Dx, -Dy, -Ds);
 
@@ -432,21 +437,20 @@ Sift::keypoint_localization (void)
              /* 参考第30页slide delta_x的求解方式 delta_x = inv(H)*b
              * 请在此处给出delta的表达式
              */
-                     /*                  */
-                     /*    此处添加代码    */
-                     /*                  */
+             //math::Vec3f delta(delta_x, delta_y, delta_s);
+             delta = H_inv * b;
 
             /**********************************************************************************/
 
-
-            math::Vec3f delta = H_inv * b;
-            delta_x = delta[0];
-            delta_y = delta[1];
-            delta_s = delta[2];
+//
+//            math::Vec3f delta = H_inv * b;
+//            delta_x = delta[0];
+//            delta_y = delta[1];
+//            delta_s = delta[2];
 
 
             /* Check if accurate location is far away from pixel center. */
-            // dx =0 表示|dx|>0.6f
+            // dx =0 表示|dx|>0.6f ？应该是小于0.6
             int dx = (delta_x > 0.6f && ix < w-2) * 1 + (delta_x < -0.6f && ix > 1) * -1;
             int dy = (delta_y > 0.6f && iy < h-2) * 1 + (delta_y < -0.6f && iy > 1) * -1;
 
@@ -456,10 +460,10 @@ Sift::keypoint_localization (void)
             {
                 ix += dx;
                 iy += dy;
-                continue;
+                continue;//结束单次循环，继续迭代使delta更准确
             }
             /* Accurate location looks good. */
-            break;
+            break;//结束整个循环
         }
 
 
@@ -474,13 +478,12 @@ Sift::keypoint_localization (void)
           * 请给出求解val的代码
           */
         //float val = 0.0;
-        /*                  */
-        /*    此处添加代码    */
-        /*                  */
-        /************************************************************************************/
-        float val = dogs[1]->at(ix, iy, 0) + 0.5f * (Dx * delta_x + Dy * delta_y + Ds * delta_s);
-        /* Calcualte edge response score Tr(H)^2 / Det(H), see Section 4.1. */
+        math::Vec3f D(Dx, Dy, Ds);
+        float val = dogs[1]->at(ix, iy, 0) + 0.5f * delta.dot(D);
 
+        /************************************************************************************/
+        //float val = dogs[1]->at(ix, iy, 0) + 0.5f * (Dx * delta_x + Dy * delta_y + Ds * delta_s);
+        /* Calcualte edge response score Tr(H)^2 / Det(H), see Section 4.1. */
          /**************************去除边缘点，参考第33页slide 仔细阅读代码 ****************************/
         float hessian_trace = Dxx + Dyy;
         float hessian_det = Dxx * Dyy - MATH_POW2(Dxy);

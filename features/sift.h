@@ -63,7 +63,7 @@ public:
          * down scaled by factors of two. This can be set to -1, which
          * expands the original image by a factor of two.
          */
-         // min_octave设置为-1表示图像
+         // min_octave设置为-1表示图像需要进行上采样，大于0需要降采样
         int min_octave;
 
         /**
@@ -77,7 +77,7 @@ public:
          * at the interpolated keypoint location. Defaults to 0.02 / samples.
          * The default is computed if the given threshold value is negative.
          */
-         // 进行亚像素精度定位时，对极值点处的DoG值的阈值
+         // 进行亚像素精度定位时，对极值点处的DoG值的阈值，用于丢弃低对比度的特征点
         float contrast_threshold;
 
         /**
@@ -94,6 +94,7 @@ public:
          * image in each octave before creating more octave samples.
          * This is a technical detail and can usually be left alone.
          */
+         //基准尺度
         float base_blur_sigma;
 
         /**
@@ -127,7 +128,7 @@ public:
         /** Octave index of the keypoint. Can be negative. */
         int octave;
         /** Sample index. Initally integer in {0 ... S-1}, later in [-1,S]. */
-        float sample;
+        float sample;//每阶都有一个有效差分数，此处表示该特征点所在的有效差分的序号，通过octave和sample可以确定尺度？
         /** Keypoint x-coordinate. Initially integer, later sub-pixel. */
         float x;
         /** Keypoint y-coordinate. Initially integer, later sub-pixel. */

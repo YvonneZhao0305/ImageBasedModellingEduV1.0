@@ -55,7 +55,7 @@ public:
      */
     struct Result
     {
-        /* Matches from set 1 in set 2. */
+        /* Matches from set 1 in set 2. 从set 2中计算得到的set 1中每个特征点的最近邻居的索引*/
         std::vector<int> matches_1_2;
         /* Matches from set 2 in set 1. */
         std::vector<int> matches_2_1;
@@ -110,7 +110,7 @@ public:
 };
 
 /* ---------------------------------------------------------------- */
-
+// 遍历set1的特征点，从feature set 2 中计算feature sets 1中每个特征点的最近邻居,
 template <typename T>
 void
 Matching::oneway_match (Options const& options,
@@ -136,7 +136,7 @@ Matching::oneway_match (Options const& options,
 
     for (int i = 0; i < set_1_size; ++i)
     {
-        // 每个特征点最近邻搜索的结果
+        // 每个特征点最近邻搜索的结果。typename是为了告诉编译器后面的字符串是一个类型名称，而不是成员函数或成员变量
         typename NearestNeighbor<T>::Result nn_result;
 
         // feature sets 1 中第i个特征点的特征描述子
@@ -157,19 +157,21 @@ Matching::oneway_match (Options const& options,
         /*
          * 参考标准1的形式给出lowe-ratio约束
          */
- //       float square_dist_1st_best = static_cast<float>(nn_result.dist_1st_best);
-//        float square_dist_2st_best = static_cast<float>(nn_result.dist_2nd_best);
-//        float const square_lowe_thres = MATH_POW2(options.lowe_ratio_threshold);
+        float square_dist_1st_best = static_cast<float>(nn_result.dist_1st_best);
+        float square_dist_2st_best = static_cast<float>(nn_result.dist_2nd_best);
+        float const square_lowe_thres = MATH_POW2(options.lowe_ratio_threshold);
 
-               /*                  */
-               /*    此处添加代码    */
-               /*                  */
-        /*******************************10696_10015b911522757f6?bizid=10696&txSecret=63384d4bd569e29729b6995dd8a9eefb&txTime=5B93EFB6**********************************/
-
-        if (static_cast<float>(nn_result.dist_1st_best)
-            / static_cast<float>(nn_result.dist_2nd_best)
-            > MATH_POW2(options.lowe_ratio_threshold))
+        if (square_dist_1st_best / square_dist_2st_best >= square_lowe_thres)
             continue;
+
+
+
+        /*****************************************************************/
+
+//        if (static_cast<float>(nn_result.dist_1st_best)
+//            / static_cast<float>(nn_result.dist_2nd_best)
+//            > MATH_POW2(options.lowe_ratio_threshold))
+//            continue;
         // 匹配成功，feature set1 中第i个特征值对应feature set2中的第index_1st_best个特征点
         result->at(i) = nn_result.index_1st_best;
     }

@@ -18,6 +18,7 @@
 #include "sfm/fundamental.h"
 #include "sfm/correspondence.h"
 #include "math/matrix_svd.h"
+#include <assert.h>
 
 typedef math::Matrix<double, 3, 3> FundamentalMatrix;
 
@@ -30,17 +31,19 @@ typedef math::Matrix<double, 3, 3> FundamentalMatrix;
  *                          log(1-z)
  *       需要的采样次数 M = -----------
  *                          log(1-p^K)
- * Example: For p = 50%, z = 99%, n = 8: M = log(0.001) / log(0.99609) = 1176.
+ * Example: For p = 50%, z = 99%, K = 8, M = log(0.001) / log(0.99609) = 1176.
  * 需要采样1176次从而保证RANSAC的成功率不低于0.99.
  * @return
  */
 int  calc_ransac_iterations (double p,
                            int K,
-                           double z = 0.99){
+                           double z = 0.99){//z是默认参数
 
-    double prob_all_good = math::fastpow(p, K);
-    double num_iterations = std::log(1.0 - z)
-                            / std::log(1.0 - prob_all_good);
+
+    double num_iterations = 0.0;
+    /* 计算迭代次数*/
+    num_iterations = log(1-z) / log(1-pow(p,K));
+
     return static_cast<int>(math::round(num_iterations));
 
 }
@@ -159,14 +162,16 @@ void calc_fundamental_least_squares(sfm::Correspondences2D2D const & matches, Fu
  */
 std::vector<int> find_inliers(sfm::Correspondences2D2D const & matches
     ,FundamentalMatrix const & F, const double & thresh){
-    const double squared_thresh = thresh* thresh;
+    const double squared_thresh = thresh* thresh; //阈值平方？
 
     std::vector<int> inliers;
-    for(int i=0; i< matches.size(); i++){
-        double error = calc_sampson_distance(F, matches[i]);
-        if(error< squared_thresh){
+    /*todo 判断内点，并将内点索引保存到inliers中*/
+    for(int i = 0;i < matches.size();i++) {
+        double d = calc_sampson_distance(F,matches[i]);
+
+        if(d < squared_thresh)
             inliers.push_back(i);
-        }
+
     }
     return inliers;
 }
@@ -177,7 +182,10 @@ int main(int argc, char *argv[]){
 
     /** 加载归一化后的匹配对 */
     sfm::Correspondences2D2D corr_all;
-    std::ifstream in("./examples/task2/correspondences.txt");
+//    std::ifstream in("./examples/task2/correspondences.txt");//不能找到文件
+//    std::ifstream in("./correspondences.txt"); //使用相对路径时，文件放在cmake-build-debug/examples/task2目录下
+    std::ifstream in("/home/zss/CLionProjects/ImageBasedModellingEdu/examples/task2/correspondences.txt");
+    std::cout << "open?"<< in.is_open() << std::endl;
     assert(in.is_open());
 
     std::string line, word;
@@ -201,7 +209,7 @@ int main(int argc, char *argv[]){
         n_line++;
     }
 
-    /* 计算采用次数 */
+    /* 计算采样次数 */
     const float inlier_ratio =0.5;
     const int n_samples=8;
     int n_iterations = calc_ransac_iterations(inlier_ratio, n_samples);
@@ -220,7 +228,7 @@ int main(int argc, char *argv[]){
         /* 1.0 随机找到8对不重复的匹配点 */
         std::set<int> indices;
         while(indices.size()<8){
-            indices.insert(util::system::rand_int() % corr_all.size());
+            indices.insert(util::system::rand_int() % corr_all.size());//？
         }
 
         math::Matrix<double, 3, 8> pset1, pset2;
@@ -246,10 +254,10 @@ int main(int argc, char *argv[]){
 
         if(inlier_indices.size()> best_inliers.size()){
 
-//            std::cout << "RANSAC-F: Iteration " << i
-//                      << ", inliers " << inlier_indices.size() << " ("
-//                      << (100.0 * inlier_indices.size() / corr_all.size())
-//                      << "%)" << std::endl;
+            std::cout << "RANSAC-F: Iteration " << i
+                      << ", inliers " << inlier_indices.size() << " ("
+                      << (100.0 * inlier_indices.size() / corr_all.size())
+                      << "%)" << std::endl;
             best_inliers.swap(inlier_indices);
         }
     }
